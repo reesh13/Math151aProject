@@ -1,0 +1,116 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath} % For advanced math symbols
+\usepackage{amsfonts} % For math fonts
+\usepackage{amssymb} % Additional math symbols
+\usepackage{geometry} % To adjust page margins
+\usepackage{hyperref} % For clickable references
+\usepackage{xcolor} % For colored links
+
+% Page setup
+\geometry{a4paper, margin=1in}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    urlcolor=cyan,
+}
+
+\title{Notes on Gaussian Quadrature}
+\author{Jack Deye}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Introduction}
+Gaussian quadrature is particularly efficient for integrating polynomials and uses specially chosen points and weights to achieve high accuracy.
+\section*{Brief Overview}
+Gaussian quadrature approximates this integral using:
+\[
+	\int_a^b f(x) \, dx \approx \sum_{i=1}^n w_i f(x_i)
+\]
+where \( x_i \) are the nodes and $w_{i}$ are the weights.
+The nodes and weights are chosen such that the method is exact for polynomials of degree $2n-1$ or lower.
+Typically, this integral is from $[-1,1]$.
+\section*{Motivation}
+Our intuition comes from the trapezoid rule, which only provide exact solutions to integrals for linear functions.
+But we can do better, take $n$ nodes $x_{1},x_{2},\cdots,x_{n}$. We can improve the trapezoid by choosing the weights such that they are exact for linear, quadratic, cubic, up to polynomials of degree $n-1$.\\
+\begin{equation}
+	\int_{-1}^{1}f \approx w_{1}f(x_{1})+w_{2}f(x_{2})+\cdots+w_{n}f(x_{n})
+\end{equation}
+\begin{align*}
+	f(x)=1       & \to  \int_{-1}^{1}1 \,dx =  2 =            w_{1}+w_{2}+\cdot +w_{n}                                        \\
+	f(x)=x       & \to  \int_{-1}^{1}x \,dx =  0 =            w_{1}x_{1}+w_{2}x_{2}+ \cdot +w_{n}x_{n}                        \\
+	             & \vdots                                                                                                     \\
+	f(x)=x^{n-1} & \to  \int_{-1}^{1}x^{n-1} \,dx =  0 =            w_{1}x_{1}^{n-1}+w_{2}x_{2}^{n-1}+\cdots+w_{n}x_{n}^{n-1} \\
+\end{align*}
+Resulting in the following linear equation (with a Vandermonde Matrix):
+\[
+	\begin{bmatrix}
+		1           & 1           & \cdots & 1           \\
+		x_{1}       & \ddots      & \cdots & x_{n}       \\
+		\vdots      &             & \ddots &             \\
+		x_{1}^{n-1} & x_{2}^{n-1} & \cdots & x_{n}^{n-1}
+	\end{bmatrix}
+	\begin{bmatrix}
+		w_{1} \\ w_{2} \\ \vdots \\ w_{n}
+	\end{bmatrix}
+	=
+	\begin{bmatrix}
+		2 \\ 0 \\ \vdots \\ b_{i}
+	\end{bmatrix}
+\]
+In practice, this method is not feasible because Vandermonde matrices are badly ill-conditioned, as the condition number increases exponentially, (https://arxiv.org/abs/1504.02118), resulting in slight changes in $b$ causing large changes in $w_{i}$'s.
+\section*{Linear Algebra Intuition}
+Ultimately, this problem boils down to a linear algebra problem, and will require using polynomials as vectors, inner products, Gram-Schmidt orthogonalization. This arises because the integral is a linear operator.
+\subsection*{Overview of Legendre Polynomials}
+Starting with the following basis and inner product:
+\[
+	\{1,x,x^{2},\cdots,x^{n} \} \qquad \langle p,q \rangle = \int_{-1}^{1} p(x)q(x)\,dx
+\]
+Performing the Gram-Schmidt process, we get the following orthogonal polynomials known as \textbf{Legendre Polynomials}.
+\begin{align*}
+	L_{0}(x)= & 1                     \\
+	L_{1}(x)= & x                     \\
+	L_{2}(x)= & \frac{1}{2}(3x^{2}-1) \\
+	          & \vdots
+\end{align*}
+Note: they have been scaled such that $L_{n}(1)=1$. \\
+It is important to notice that $L_{i}(x)$ is orthogonal to all polynomials of degree less than $i$, meaning $\forall p \in \mathcal{P},\, \langle L_{i}, p \rangle = 0$ for $\deg(p) \leq i$.
+Another important note is that they have exactly $n$ roots over $\mathbb{R}$.
+\subsection*{Developing Gaussian Quadrature}
+Given a polynomial of degree $2n-1$, namely $p(x)$, we can divide it by $L_{n}$, resulting in the following division with degrees:
+\begin{equation}
+	\overbrace{p(x)}^{2n-1}=\overbrace{q(x)}^{n-1} \overbrace{L_{n}(x)}^{n}+\overbrace{r(x)}^{n-1}
+\end{equation}
+Integrating both sides we get
+\[
+	\int_{-1}^{1}p(x) \,dx = \int_{-1}^{1}q(x) L_{n}(x)\,dx + \int_{-1}^{1}r(x)\,dx  = 0+\int_{-1}^{1}r(x) \,dx
+\] because the orthogonality of $L_{n}(x)$. \\
+Going back to quadrature, we can ensure the same behavior by picking nodes at the zeros of $L_{n}(x)$. \\
+Because $\int_{-1}^{1} p(x)\,dx = \int_{-1}^{1}r(x)\,dx$, we can interpolate $r(x)$ exactly with Lagrange polynomials, resulting in
+\[
+	\int_{-1}^{1}r(x)\,dx = \int_{-1}^{1}\left( \sum_{i=1}^{n}f(x_{i})l_{i}(x)\right)\,dx = \sum_{i=1}^{n}f(x_{i})\int_{-1}^{1}l_{i}(x)\,dx
+\]
+meaning we choose our weights the be the integral of the Lagrange basis polynomials, or
+\[
+	w_{i}=\int_{-1}^{1}\prod_{{j=1 \\j \ne i}}^{n} \frac{x-x_{j}}{x_{i}-x_{j}}\,dx
+\]
+This results perfect interpolation of polynomials of degree $2n-1$, with $n$ nodes.
+We can actually relate Lagrange and Legendre polynomials and then use the Christoffel-Darboux formula to rewrite the definition of the weights as
+\begin{equation}
+	w_{i}=\frac{2}{(1-x_{i}^2)(L_{n}'(x_{i}))^{2}}
+\end{equation}
+\subsection*{Note on the Bounds}
+One must change an integral over $[a,b]$ to one over $[-1,1]$ before using Gaussian Quadrature. This can be done with
+\begin{equation*}
+	\int_{a}^{b} f(x) \,dx = \int_{-1}^{1}f \left(\frac{b-a}{2}x+\frac{a+b}{2}\right)\frac{b-a}{2} \,dx
+\end{equation*}
+Resulting in a formula of:
+\begin{equation}
+	\int_{a}^{b}f(x) \approx \frac{b-a}{2}\sum_{i=1}^{n}w_{i}f \left(\frac{b-a}{2}x_{i}+\frac{a+b}{2} \right)
+\end{equation}
+
+
+Error estimate pg22.
+(https://www.math.umd.edu/~mariakc/AMSC466/LectureNotes/quadrature.pdf)
+\end{document}
